@@ -39,6 +39,7 @@ gradlew.bat bootRun
   "threadModel": "VIRTUAL",
   "lockStrategy": "OPTIMISTIC_LOCK",
   "productId": 1,
+  "initialStock": 10000,
   "quantity": 1,
   "totalRequests": 1000,
   "concurrency": 200,

@@ -1,19 +1,33 @@
 package io.lockbench.concurrency.thread;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ThreadExecutionStrategyFactory {
 
-    public ThreadExecutionStrategy create(ThreadModelType threadModelType, int requestedConcurrency) {
+    private final int platformConcurrency;
+    private final int virtualConcurrency;
+
+    public ThreadExecutionStrategyFactory(
+            @Value("${lockbench.thread-fixed.platform-concurrency:200}") int platformConcurrency,
+            @Value("${lockbench.thread-fixed.virtual-concurrency:200}") int virtualConcurrency
+    ) {
+        this.platformConcurrency = Math.max(1, platformConcurrency);
+        this.virtualConcurrency = Math.max(1, virtualConcurrency);
+    }
+
+    public ThreadExecutionStrategy create(ThreadModelType threadModelType) {
         return switch (threadModelType) {
-            case PLATFORM -> new PlatformThreadExecutionStrategy(normalizePlatformPoolSize(requestedConcurrency));
-            case VIRTUAL -> new VirtualThreadExecutionStrategy();
+            case PLATFORM -> new PlatformThreadExecutionStrategy(platformConcurrency);
+            case VIRTUAL -> new VirtualThreadExecutionStrategy(virtualConcurrency);
         };
     }
 
-    private int normalizePlatformPoolSize(int requestedConcurrency) {
-        int maxPool = Runtime.getRuntime().availableProcessors() * 4;
-        return Math.max(1, Math.min(requestedConcurrency, maxPool));
+    public int effectiveConcurrency(ThreadModelType threadModelType) {
+        return switch (threadModelType) {
+            case PLATFORM -> platformConcurrency;
+            case VIRTUAL -> virtualConcurrency;
+        };
     }
 }

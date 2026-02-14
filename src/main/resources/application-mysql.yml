@@ -16,3 +16,6 @@ spring:
 lockbench:
   redis-lock:
     enabled: false
+  thread-fixed:
+    platform-concurrency: 200
+    virtual-concurrency: 200

@@ -6,6 +6,7 @@ public record ExperimentResponse(
         String runId,
         String threadModel,
         String lockStrategy,
+        int concurrency,
         int totalRequests,
         int successCount,
         int failureCount,

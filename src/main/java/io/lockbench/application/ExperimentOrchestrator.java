@@ -7,6 +7,7 @@ import io.lockbench.concurrency.lock.StockLockStrategyFactory;
 import io.lockbench.concurrency.thread.ThreadExecutionStrategy;
 import io.lockbench.concurrency.thread.ThreadExecutionStrategyFactory;
 import io.lockbench.domain.model.OrderResult;
+import io.lockbench.domain.port.StockAccessPort;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -23,18 +24,24 @@ public class ExperimentOrchestrator {
 
     private final StockLockStrategyFactory lockStrategyFactory;
     private final ThreadExecutionStrategyFactory threadExecutionStrategyFactory;
+    private final StockAccessPort stockAccessPort;
 
     public ExperimentOrchestrator(
             StockLockStrategyFactory lockStrategyFactory,
-            ThreadExecutionStrategyFactory threadExecutionStrategyFactory
+            ThreadExecutionStrategyFactory threadExecutionStrategyFactory,
+            StockAccessPort stockAccessPort
     ) {
         this.lockStrategyFactory = lockStrategyFactory;
         this.threadExecutionStrategyFactory = threadExecutionStrategyFactory;
+        this.stockAccessPort = stockAccessPort;
     }
 
     public ExperimentResponse run(ExperimentRequest request) {
         String runId = UUID.randomUUID().toString();
         StockLockStrategy stockLockStrategy = lockStrategyFactory.get(request.lockStrategy());
+        int effectiveConcurrency = threadExecutionStrategyFactory.effectiveConcurrency(request.threadModel());
+
+        stockAccessPort.initialize(request.productId(), request.initialStock());
 
         Instant start = Instant.now();
         List<Long> latencyNanos = new ArrayList<>(request.totalRequests());
@@ -43,7 +50,7 @@ public class ExperimentOrchestrator {
         int failureCount = 0;
 
         try (ThreadExecutionStrategy threadExecutionStrategy =
-                     threadExecutionStrategyFactory.create(request.threadModel(), request.concurrency())) {
+                     threadExecutionStrategyFactory.create(request.threadModel())) {
 
             List<CompletableFuture<OrderResult>> futures = new ArrayList<>(request.totalRequests());
             for (int i = 0; i < request.totalRequests(); i++) {
@@ -83,6 +90,7 @@ public class ExperimentOrchestrator {
                 runId,
                 request.threadModel().name(),
                 request.lockStrategy().name(),
+                effectiveConcurrency,
                 request.totalRequests(),
                 successCount,
                 failureCount,
