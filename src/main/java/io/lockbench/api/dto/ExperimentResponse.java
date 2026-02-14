@@ -1,5 +1,7 @@
 package io.lockbench.api.dto;
 
+import java.util.Map;
+
 public record ExperimentResponse(
         String runId,
         String threadModel,
@@ -7,6 +9,7 @@ public record ExperimentResponse(
         int totalRequests,
         int successCount,
         int failureCount,
+        Map<String, Integer> failureBreakdown,
         long elapsedMillis,
         double throughputPerSec,
         long p50Millis,
@@ -14,3 +17,4 @@ public record ExperimentResponse(
         long p99Millis
 ) {
 }
+

@@ -6,12 +6,15 @@ import io.lockbench.concurrency.lock.StockLockStrategy;
 import io.lockbench.concurrency.lock.StockLockStrategyFactory;
 import io.lockbench.concurrency.thread.ThreadExecutionStrategy;
 import io.lockbench.concurrency.thread.ThreadExecutionStrategyFactory;
+import io.lockbench.domain.model.OrderResult;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -35,17 +38,18 @@ public class ExperimentOrchestrator {
 
         Instant start = Instant.now();
         List<Long> latencyNanos = new ArrayList<>(request.totalRequests());
+        Map<String, Integer> failureBreakdown = new HashMap<>();
         int successCount = 0;
         int failureCount = 0;
 
         try (ThreadExecutionStrategy threadExecutionStrategy =
                      threadExecutionStrategyFactory.create(request.threadModel(), request.concurrency())) {
 
-            List<CompletableFuture<Boolean>> futures = new ArrayList<>(request.totalRequests());
+            List<CompletableFuture<OrderResult>> futures = new ArrayList<>(request.totalRequests());
             for (int i = 0; i < request.totalRequests(); i++) {
-                CompletableFuture<Boolean> future = threadExecutionStrategy.submit(() -> {
+                CompletableFuture<OrderResult> future = threadExecutionStrategy.submit(() -> {
                     long begin = System.nanoTime();
-                    boolean success = stockLockStrategy.placeOrder(
+                    OrderResult result = stockLockStrategy.placeOrder(
                             request.productId(),
                             request.quantity(),
                             request.optimisticRetries()
@@ -54,16 +58,19 @@ public class ExperimentOrchestrator {
                     synchronized (latencyNanos) {
                         latencyNanos.add(end - begin);
                     }
-                    return success;
+                    return result;
                 });
                 futures.add(future);
             }
 
-            for (CompletableFuture<Boolean> future : futures) {
-                if (future.join()) {
+            for (CompletableFuture<OrderResult> future : futures) {
+                OrderResult result = future.join();
+                if (result.success()) {
                     successCount++;
                 } else {
                     failureCount++;
+                    String reason = result.failureReason() == null ? "UNKNOWN" : result.failureReason().name();
+                    failureBreakdown.merge(reason, 1, Integer::sum);
                 }
             }
         }
@@ -79,6 +86,7 @@ public class ExperimentOrchestrator {
                 request.totalRequests(),
                 successCount,
                 failureCount,
+                Map.copyOf(failureBreakdown),
                 elapsedMillis,
                 throughputPerSec,
                 latency.p50Millis(),
@@ -87,3 +95,4 @@ public class ExperimentOrchestrator {
         );
     }
 }
+
