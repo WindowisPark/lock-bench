@@ -1,0 +1,418 @@
+{
+  "__inputs": [],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "10.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (thread_model, lock_strategy) (rate(lockbench_experiment_run_count_total{thread_model=~\"$thread_model\", lock_strategy=~\"$lock_strategy\"}[1m]))",
+          "legendFormat": "{{thread_model}}/{{lock_strategy}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Experiment Runs Per Min",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (thread_model, lock_strategy) (rate(lockbench_experiment_request_success_count_total{thread_model=~\"$thread_model\", lock_strategy=~\"$lock_strategy\"}[1m]))",
+          "legendFormat": "success {{thread_model}}/{{lock_strategy}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (thread_model, lock_strategy) (rate(lockbench_experiment_request_failure_count_total{thread_model=~\"$thread_model\", lock_strategy=~\"$lock_strategy\"}[1m]))",
+          "legendFormat": "failure {{thread_model}}/{{lock_strategy}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Request Throughput (Success/Failure)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "max": 100,
+          "min": 0,
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "100 * sum by (thread_model, lock_strategy) (rate(lockbench_experiment_request_failure_count_total{thread_model=~\"$thread_model\", lock_strategy=~\"$lock_strategy\"}[1m])) / clamp_min(sum by (thread_model, lock_strategy) (rate(lockbench_experiment_request_success_count_total{thread_model=~\"$thread_model\", lock_strategy=~\"$lock_strategy\"}[1m]) + rate(lockbench_experiment_request_failure_count_total{thread_model=~\"$thread_model\", lock_strategy=~\"$lock_strategy\"}[1m])), 1e-9)",
+          "legendFormat": "{{thread_model}}/{{lock_strategy}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Failure Ratio %",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "1000 * sum by (thread_model, lock_strategy) (rate(lockbench_experiment_elapsed_seconds_sum{thread_model=~\"$thread_model\", lock_strategy=~\"$lock_strategy\"}[5m])) / clamp_min(sum by (thread_model, lock_strategy) (rate(lockbench_experiment_elapsed_seconds_count{thread_model=~\"$thread_model\", lock_strategy=~\"$lock_strategy\"}[5m])), 1e-9)",
+          "legendFormat": "{{thread_model}}/{{lock_strategy}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Avg Experiment Elapsed (ms)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (thread_model, lock_strategy) (rate(lockbench_experiment_throughput_req_per_sec_sum{thread_model=~\"$thread_model\", lock_strategy=~\"$lock_strategy\"}[5m])) / clamp_min(sum by (thread_model, lock_strategy) (rate(lockbench_experiment_throughput_req_per_sec_count{thread_model=~\"$thread_model\", lock_strategy=~\"$lock_strategy\"}[5m])), 1e-9)",
+          "legendFormat": "{{thread_model}}/{{lock_strategy}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Avg Throughput (req/s)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(lockbench_matrix_run_count_total[5m]))",
+          "legendFormat": "matrix run",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(lockbench_matrix_scenario_failure_count_total[5m]))",
+          "legendFormat": "matrix failed scenario",
+          "refId": "B"
+        }
+      ],
+      "title": "Matrix Run and Failed Scenario Rate",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": [
+    "lockbench",
+    "day4",
+    "prometheus"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "text": "Prometheus",
+          "value": "Prometheus"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "name": "DS_PROMETHEUS",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": ".*"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(lockbench_experiment_run_count_total, thread_model)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Thread Model",
+        "multi": false,
+        "name": "thread_model",
+        "options": [],
+        "query": {
+          "query": "label_values(lockbench_experiment_run_count_total, thread_model)",
+          "refId": "VarA"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": ".*"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(lockbench_experiment_run_count_total, lock_strategy)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Lock Strategy",
+        "multi": false,
+        "name": "lock_strategy",
+        "options": [],
+        "query": {
+          "query": "label_values(lockbench_experiment_run_count_total, lock_strategy)",
+          "refId": "VarB"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "LockBench Day4 Overview",
+  "uid": "lockbench-day4",
+  "version": 1,
+  "weekStart": ""
+}

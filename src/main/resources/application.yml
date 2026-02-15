@@ -21,3 +21,5 @@ lockbench:
   thread-fixed:
     platform-concurrency: 200
     virtual-concurrency: 200
+  run-store:
+    max-size: 500

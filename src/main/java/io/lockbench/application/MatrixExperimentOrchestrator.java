@@ -17,9 +17,17 @@ import java.util.UUID;
 public class MatrixExperimentOrchestrator {
 
     private final ExperimentOrchestrator experimentOrchestrator;
+    private final RunResultStore runResultStore;
+    private final ExperimentMetricsRecorder experimentMetricsRecorder;
 
-    public MatrixExperimentOrchestrator(ExperimentOrchestrator experimentOrchestrator) {
+    public MatrixExperimentOrchestrator(
+            ExperimentOrchestrator experimentOrchestrator,
+            RunResultStore runResultStore,
+            ExperimentMetricsRecorder experimentMetricsRecorder
+    ) {
         this.experimentOrchestrator = experimentOrchestrator;
+        this.runResultStore = runResultStore;
+        this.experimentMetricsRecorder = experimentMetricsRecorder;
     }
 
     public MatrixRunResponse runMatrix(MatrixRunRequest request) {
@@ -62,12 +70,15 @@ public class MatrixExperimentOrchestrator {
             }
         }
 
-        return new MatrixRunResponse(
+        MatrixRunResponse response = new MatrixRunResponse(
                 matrixRunId,
                 scenarios.size(),
                 successScenarios,
                 failedScenarios,
                 scenarios
         );
+        runResultStore.saveMatrixRunResult(response);
+        experimentMetricsRecorder.recordMatrixRun(response);
+        return response;
     }
 }

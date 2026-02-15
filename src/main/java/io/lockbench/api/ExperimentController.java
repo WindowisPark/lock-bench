@@ -2,15 +2,22 @@ package io.lockbench.api;
 
 import io.lockbench.api.dto.ExperimentRequest;
 import io.lockbench.api.dto.ExperimentResponse;
+import io.lockbench.api.dto.ExperimentRunSnapshot;
 import io.lockbench.api.dto.MatrixRunRequest;
 import io.lockbench.api.dto.MatrixRunResponse;
+import io.lockbench.api.dto.MatrixRunSnapshot;
 import io.lockbench.application.ExperimentOrchestrator;
 import io.lockbench.application.MatrixExperimentOrchestrator;
+import io.lockbench.application.RunResultStore;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/experiments")
@@ -18,13 +25,16 @@ public class ExperimentController {
 
     private final ExperimentOrchestrator experimentOrchestrator;
     private final MatrixExperimentOrchestrator matrixExperimentOrchestrator;
+    private final RunResultStore runResultStore;
 
     public ExperimentController(
             ExperimentOrchestrator experimentOrchestrator,
-            MatrixExperimentOrchestrator matrixExperimentOrchestrator
+            MatrixExperimentOrchestrator matrixExperimentOrchestrator,
+            RunResultStore runResultStore
     ) {
         this.experimentOrchestrator = experimentOrchestrator;
         this.matrixExperimentOrchestrator = matrixExperimentOrchestrator;
+        this.runResultStore = runResultStore;
     }
 
     @PostMapping("/run")
@@ -35,5 +45,17 @@ public class ExperimentController {
     @PostMapping("/matrix-run")
     public MatrixRunResponse runMatrix(@Valid @RequestBody MatrixRunRequest request) {
         return matrixExperimentOrchestrator.runMatrix(request);
+    }
+
+    @GetMapping("/runs/{runId}")
+    public ExperimentRunSnapshot getRun(@PathVariable String runId) {
+        return runResultStore.findExperimentRun(runId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Run not found: " + runId));
+    }
+
+    @GetMapping("/matrix-runs/{matrixRunId}")
+    public MatrixRunSnapshot getMatrixRun(@PathVariable String matrixRunId) {
+        return runResultStore.findMatrixRun(matrixRunId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Matrix run not found: " + matrixRunId));
     }
 }

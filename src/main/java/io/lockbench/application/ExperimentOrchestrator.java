@@ -25,15 +25,21 @@ public class ExperimentOrchestrator {
     private final StockLockStrategyFactory lockStrategyFactory;
     private final ThreadExecutionStrategyFactory threadExecutionStrategyFactory;
     private final StockAccessPort stockAccessPort;
+    private final RunResultStore runResultStore;
+    private final ExperimentMetricsRecorder experimentMetricsRecorder;
 
     public ExperimentOrchestrator(
             StockLockStrategyFactory lockStrategyFactory,
             ThreadExecutionStrategyFactory threadExecutionStrategyFactory,
-            StockAccessPort stockAccessPort
+            StockAccessPort stockAccessPort,
+            RunResultStore runResultStore,
+            ExperimentMetricsRecorder experimentMetricsRecorder
     ) {
         this.lockStrategyFactory = lockStrategyFactory;
         this.threadExecutionStrategyFactory = threadExecutionStrategyFactory;
         this.stockAccessPort = stockAccessPort;
+        this.runResultStore = runResultStore;
+        this.experimentMetricsRecorder = experimentMetricsRecorder;
     }
 
     public ExperimentResponse run(ExperimentRequest request) {
@@ -86,7 +92,7 @@ public class ExperimentOrchestrator {
         LatencySummary latency = LatencySummary.of(latencyNanos);
         double throughputPerSec = elapsedMillis == 0 ? successCount : (successCount * 1000.0) / elapsedMillis;
 
-        return new ExperimentResponse(
+        ExperimentResponse response = new ExperimentResponse(
                 runId,
                 request.threadModel().name(),
                 request.lockStrategy().name(),
@@ -101,6 +107,9 @@ public class ExperimentOrchestrator {
                 latency.p95Millis(),
                 latency.p99Millis()
         );
+        runResultStore.saveExperimentResult(response);
+        experimentMetricsRecorder.recordExperimentRun(response);
+        return response;
     }
 }
 
