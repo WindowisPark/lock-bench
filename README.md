@@ -52,3 +52,11 @@ gradlew.bat bootRun
 - 기본 스토리지는 인메모리(`InMemoryStockAccessAdapter`)
 - Redis 분산락은 `lockbench.redis-lock.enabled=true`일 때만 활성화
 - MySQL/JPA는 다음 단계에서 어댑터로 연결할 수 있도록 의존성과 경계를 준비한 상태
+
+## V1 Status (2026-02-16)
+
+- Finalization note: `docs/day7-v1-finalization.md`
+- Release notes: `docs/v1-release-notes.md`
+- Valid benchmark baseline: `src/main/resources/k6/results/matrix-20260216-144103`
+- Recommended default profile: `PLATFORM + PESSIMISTIC_LOCK`
+- Redis lock path: requires `lockbench.redis-lock.enabled=true` and reachable Redis
