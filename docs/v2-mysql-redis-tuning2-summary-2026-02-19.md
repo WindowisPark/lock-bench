@@ -21,3 +21,9 @@
 - Redis 성공률: PLATFORM 100%로 개선, VIRTUAL은 90%대.
 - Redis p95 지연이 매우 큼(1~2초대).
 - MySQL 경로는 안정적으로 100% 성공률 유지.
+
+## 시각화
+- `docs/figures/mysql-redis-tuning2-platform-throughput.svg`
+- `docs/figures/mysql-redis-tuning2-virtual-throughput.svg`
+- `docs/figures/mysql-redis-tuning2-platform-success.svg`
+- `docs/figures/mysql-redis-tuning2-virtual-success.svg`
