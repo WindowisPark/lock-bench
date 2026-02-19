@@ -1,6 +1,7 @@
 spring:
-  autoconfigure:
-    exclude: []
+  config:
+    activate:
+      on-profile: mysql-redis
   datasource:
     url: ${MYSQL_JDBC_URL:jdbc:mysql://localhost:3306/lockbench?serverTimezone=UTC&characterEncoding=UTF-8}
     username: ${MYSQL_USERNAME:root}
@@ -12,10 +13,20 @@ spring:
       hibernate:
         format_sql: true
     open-in-view: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2s
 
 lockbench:
   redis-lock:
-    enabled: false
+    enabled: true
+    ttl-millis: 8000
+    max-retries: 10
+    base-backoff-millis: 10
+    max-backoff-millis: 200
   thread-fixed:
     platform-concurrency: 200
     virtual-concurrency: 200

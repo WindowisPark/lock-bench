@@ -12,6 +12,8 @@ public record ExperimentResponse(
         int failureCount,
         Map<String, Integer> failureBreakdown,
         long elapsedMillis,
+        long elapsedNanos,
+        ThroughputConfidence throughputConfidence,
         double throughputPerSec,
         long p50Millis,
         long p95Millis,

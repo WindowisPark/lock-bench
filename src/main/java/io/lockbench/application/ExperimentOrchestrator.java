@@ -2,6 +2,7 @@ package io.lockbench.application;
 
 import io.lockbench.api.dto.ExperimentRequest;
 import io.lockbench.api.dto.ExperimentResponse;
+import io.lockbench.api.dto.ThroughputConfidence;
 import io.lockbench.concurrency.lock.StockLockStrategy;
 import io.lockbench.concurrency.lock.StockLockStrategyFactory;
 import io.lockbench.concurrency.thread.ThreadExecutionStrategy;
@@ -10,14 +11,13 @@ import io.lockbench.domain.model.OrderResult;
 import io.lockbench.domain.port.StockAccessPort;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class ExperimentOrchestrator {
@@ -49,7 +49,7 @@ public class ExperimentOrchestrator {
 
         stockAccessPort.initialize(request.productId(), request.initialStock());
 
-        Instant start = Instant.now();
+        long startNanos = System.nanoTime();
         List<Long> latencyNanos = new ArrayList<>(request.totalRequests());
         Map<String, Integer> failureBreakdown = new HashMap<>();
         int successCount = 0;
@@ -88,9 +88,13 @@ public class ExperimentOrchestrator {
             }
         }
 
-        long elapsedMillis = Duration.between(start, Instant.now()).toMillis();
+        long elapsedNanos = System.nanoTime() - startNanos;
+        long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(elapsedNanos);
         LatencySummary latency = LatencySummary.of(latencyNanos);
-        double throughputPerSec = elapsedMillis == 0 ? successCount : (successCount * 1000.0) / elapsedMillis;
+        double throughputPerSec = elapsedNanos == 0 ? successCount : (successCount * 1_000_000_000.0) / elapsedNanos;
+        ThroughputConfidence throughputConfidence = elapsedNanos >= 1_000_000L
+                ? ThroughputConfidence.HIGH
+                : ThroughputConfidence.LOW;
 
         ExperimentResponse response = new ExperimentResponse(
                 runId,
@@ -102,6 +106,8 @@ public class ExperimentOrchestrator {
                 failureCount,
                 Map.copyOf(failureBreakdown),
                 elapsedMillis,
+                elapsedNanos,
+                throughputConfidence,
                 throughputPerSec,
                 latency.p50Millis(),
                 latency.p95Millis(),

@@ -74,10 +74,17 @@ Automation output directory contains:
 - `runId`
 - `successCount`
 - `failureCount`
+- `failureLockTimeout`
+- `failureOutOfStock`
+- `failureVersionConflict`
+- `failureInvalidQuantity`
+- `failureProductNotFound`
+- `failureUnknown`
 - `elapsedMillis`
+- `elapsedNanos`
+- `throughputConfidence`
 - `throughputPerSec`
 - `p95Millis`
 - `checksPassRate`
 - `httpReqFailedRate`
 - `httpReqDurationAvgMs`
-

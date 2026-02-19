@@ -2,6 +2,7 @@ package io.lockbench.infra.memory;
 
 import io.lockbench.domain.model.StockSnapshot;
 import io.lockbench.domain.port.StockAccessPort;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -10,6 +11,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
 @Component
+@Profile("!mysql")
 public class InMemoryStockAccessAdapter implements StockAccessPort {
 
     private final Map<Long, AtomicReference<StockState>> states = new ConcurrentHashMap<>();

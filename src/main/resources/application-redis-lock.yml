@@ -1,0 +1,15 @@
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2s
+
+lockbench:
+  redis-lock:
+    enabled: true
+    ttl-millis: 8000
+    max-retries: 10
+    base-backoff-millis: 10
+    max-backoff-millis: 200

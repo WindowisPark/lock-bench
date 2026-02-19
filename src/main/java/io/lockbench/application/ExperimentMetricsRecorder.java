@@ -45,7 +45,7 @@ public class ExperimentMetricsRecorder {
                 .description("Experiment total elapsed time")
                 .tags(tags)
                 .register(meterRegistry)
-                .record(Duration.ofMillis(response.elapsedMillis()));
+                .record(Duration.ofNanos(response.elapsedNanos()));
 
         DistributionSummary.builder("lockbench.experiment.throughput")
                 .description("Experiment throughput in requests/sec")
