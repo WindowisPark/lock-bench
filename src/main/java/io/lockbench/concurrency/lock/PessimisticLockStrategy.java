@@ -4,6 +4,7 @@ import io.lockbench.domain.model.OrderFailureReason;
 import io.lockbench.domain.model.OrderResult;
 import io.lockbench.domain.port.StockAccessPort;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 public class PessimisticLockStrategy implements StockLockStrategy {
@@ -20,15 +21,19 @@ public class PessimisticLockStrategy implements StockLockStrategy {
     }
 
     @Override
-    public OrderResult placeOrder(Long productId, int quantity, int optimisticRetries) {
+    @Transactional
+    public OrderResult placeOrder(Long productId, int quantity, int optimisticRetries, long holdMillis) {
         if (quantity <= 0) {
             return OrderResult.fail(OrderFailureReason.INVALID_QUANTITY);
         }
 
-        // Pessimistic strategy is responsible only for lock-protected critical section.
-        // Transaction boundary is intentionally owned by application/service layer.
+        // @Transactional keeps the DB connection + row lock open until this method returns.
+        // holdMillis simulates slow business logic inside the critical section.
         boolean updated = stockAccessPort.decreaseWithPessimisticLock(productId, quantity);
         if (updated) {
+            if (holdMillis > 0) {
+                try { Thread.sleep(holdMillis); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            }
             return OrderResult.ok();
         }
         return stockAccessPort.findSnapshot(productId) == null

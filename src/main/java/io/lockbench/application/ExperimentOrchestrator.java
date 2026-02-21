@@ -65,7 +65,8 @@ public class ExperimentOrchestrator {
                     OrderResult result = stockLockStrategy.placeOrder(
                             request.productId(),
                             request.quantity(),
-                            request.optimisticRetries()
+                            request.optimisticRetries(),
+                            request.processingDelayMillis()
                     );
                     long end = System.nanoTime();
                     synchronized (latencyNanos) {

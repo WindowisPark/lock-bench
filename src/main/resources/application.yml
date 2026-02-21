@@ -1,6 +1,11 @@
 spring:
   application:
     name: lockbench
+  profiles:
+    group:
+      mysql-redis:
+        - mysql
+        - mysql-redis
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration

@@ -47,7 +47,8 @@ public class MatrixExperimentOrchestrator {
                             request.quantity(),
                             request.totalRequests(),
                             1,
-                            request.optimisticRetries()
+                            request.optimisticRetries(),
+                            0
                     ));
                     scenarios.add(new MatrixScenarioResult(
                             threadModel.name(),

@@ -46,7 +46,7 @@ public class RedisDistributedLockStrategy implements StockLockStrategy {
     }
 
     @Override
-    public OrderResult placeOrder(Long productId, int quantity, int optimisticRetries) {
+    public OrderResult placeOrder(Long productId, int quantity, int optimisticRetries, long holdMillis) {
         if (!redisLockEnabled) {
             throw new IllegalStateException("Redis distributed lock is disabled. Set lockbench.redis-lock.enabled=true.");
         }
@@ -68,6 +68,10 @@ public class RedisDistributedLockStrategy implements StockLockStrategy {
 
             try {
                 boolean updated = stockAccessPort.decreaseWithoutLock(productId, quantity);
+                // DB connection is already returned here. holdMillis occupies only the thread + Redis key.
+                if (holdMillis > 0) {
+                    try { Thread.sleep(holdMillis); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                }
                 if (updated) {
                     return OrderResult.ok();
                 }
@@ -86,9 +90,8 @@ public class RedisDistributedLockStrategy implements StockLockStrategy {
             return;
         }
         long exponential = baseBackoffMillis << Math.min(attempt, 10);
-        long baseDelay = Math.min(maxBackoffMillis, exponential);
-        long jitter = ThreadLocalRandom.current().nextLong(baseDelay + 1);
-        long sleepMillis = baseDelay + jitter;
+        long cap = Math.min(maxBackoffMillis, exponential);
+        long sleepMillis = ThreadLocalRandom.current().nextLong(cap + 1);
         try {
             Thread.sleep(sleepMillis);
         } catch (InterruptedException e) {

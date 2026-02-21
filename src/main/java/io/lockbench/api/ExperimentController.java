@@ -9,6 +9,8 @@ import io.lockbench.api.dto.MatrixRunSnapshot;
 import io.lockbench.application.ExperimentOrchestrator;
 import io.lockbench.application.MatrixExperimentOrchestrator;
 import io.lockbench.application.RunResultStore;
+import io.lockbench.domain.model.StockSnapshot;
+import io.lockbench.domain.port.StockAccessPort;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,15 +28,18 @@ public class ExperimentController {
     private final ExperimentOrchestrator experimentOrchestrator;
     private final MatrixExperimentOrchestrator matrixExperimentOrchestrator;
     private final RunResultStore runResultStore;
+    private final StockAccessPort stockAccessPort;
 
     public ExperimentController(
             ExperimentOrchestrator experimentOrchestrator,
             MatrixExperimentOrchestrator matrixExperimentOrchestrator,
-            RunResultStore runResultStore
+            RunResultStore runResultStore,
+            StockAccessPort stockAccessPort
     ) {
         this.experimentOrchestrator = experimentOrchestrator;
         this.matrixExperimentOrchestrator = matrixExperimentOrchestrator;
         this.runResultStore = runResultStore;
+        this.stockAccessPort = stockAccessPort;
     }
 
     @PostMapping("/run")
@@ -57,5 +62,14 @@ public class ExperimentController {
     public MatrixRunSnapshot getMatrixRun(@PathVariable String matrixRunId) {
         return runResultStore.findMatrixRun(matrixRunId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Matrix run not found: " + matrixRunId));
+    }
+
+    @GetMapping("/stock/{productId}")
+    public StockSnapshot getStock(@PathVariable Long productId) {
+        StockSnapshot snapshot = stockAccessPort.findSnapshot(productId);
+        if (snapshot == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found: " + productId);
+        }
+        return snapshot;
     }
 }

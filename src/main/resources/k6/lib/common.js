@@ -23,7 +23,17 @@ export function defaultExperimentPayload() {
     totalRequests: intEnv("TOTAL_REQUESTS", 1000),
     concurrency: intEnv("CONCURRENCY", 200),
     optimisticRetries: intEnv("OPTIMISTIC_RETRIES", 3),
+    processingDelayMillis: intEnv("PROCESSING_DELAY_MILLIS", 0),
   };
+}
+
+export function getStock(productId) {
+  const res = http.get(
+    `${baseUrl()}/api/experiments/stock/${productId}`,
+    { tags: { type: "read" } }
+  );
+  check(res, { "read status 200": (r) => r.status === 200 });
+  return res;
 }
 
 export function postExperiment(overrides = {}) {

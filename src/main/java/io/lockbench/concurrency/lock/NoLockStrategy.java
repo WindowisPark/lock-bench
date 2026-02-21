@@ -20,12 +20,15 @@ public class NoLockStrategy implements StockLockStrategy {
     }
 
     @Override
-    public OrderResult placeOrder(Long productId, int quantity, int optimisticRetries) {
+    public OrderResult placeOrder(Long productId, int quantity, int optimisticRetries, long holdMillis) {
         if (quantity <= 0) {
             return OrderResult.fail(OrderFailureReason.INVALID_QUANTITY);
         }
 
         boolean updated = stockAccessPort.decreaseWithoutLock(productId, quantity);
+        if (holdMillis > 0) {
+            try { Thread.sleep(holdMillis); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        }
         if (updated) {
             return OrderResult.ok();
         }

@@ -5,6 +5,6 @@ import io.lockbench.domain.model.OrderResult;
 public interface StockLockStrategy {
     LockStrategyType type();
 
-    OrderResult placeOrder(Long productId, int quantity, int optimisticRetries);
+    OrderResult placeOrder(Long productId, int quantity, int optimisticRetries, long holdMillis);
 }
 

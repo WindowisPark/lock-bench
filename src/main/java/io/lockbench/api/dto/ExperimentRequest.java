@@ -14,6 +14,7 @@ public record ExperimentRequest(
         @Min(1) int quantity,
         @Min(1) @Max(1_000_000) int totalRequests,
         @Min(1) @Max(20_000) int concurrency,
-        @Min(0) @Max(20) int optimisticRetries
+        @Min(0) @Max(20) int optimisticRetries,
+        @Min(0) @Max(10000) int processingDelayMillis
 ) {
 }
