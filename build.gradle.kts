@@ -33,3 +33,10 @@ dependencies {
 tasks.withType<Test> {
     useJUnitPlatform()
 }
+
+tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
+    jvmArgs(
+        "-XX:+FlightRecorder",
+        "-XX:StartFlightRecording=duration=120s,filename=jfr/lockbench.jfr,settings=profile"
+    )
+}
