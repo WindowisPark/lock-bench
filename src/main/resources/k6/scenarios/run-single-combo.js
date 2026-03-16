@@ -16,6 +16,7 @@ export default function () {
     totalRequests: Number.parseInt(__ENV.TOTAL_REQUESTS || "1000", 10),
     initialStock: Number.parseInt(__ENV.INITIAL_STOCK || "10000", 10),
     quantity: Number.parseInt(__ENV.QUANTITY || "1", 10),
+    concurrency: Number.parseInt(__ENV.CONCURRENCY || "200", 10),
     optimisticRetries: Number.parseInt(__ENV.OPTIMISTIC_RETRIES || "3", 10),
   });
   console.log(`LOCKBENCH_REQUEST ${JSON.stringify(output.payload)}`);

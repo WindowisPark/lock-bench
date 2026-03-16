@@ -45,7 +45,9 @@ public class ExperimentOrchestrator {
     public ExperimentResponse run(ExperimentRequest request) {
         String runId = UUID.randomUUID().toString();
         StockLockStrategy stockLockStrategy = lockStrategyFactory.get(request.lockStrategy());
-        int effectiveConcurrency = threadExecutionStrategyFactory.effectiveConcurrency(request.threadModel());
+        int effectiveConcurrency = request.concurrency() > 0
+                ? request.concurrency()
+                : threadExecutionStrategyFactory.effectiveConcurrency(request.threadModel());
 
         stockAccessPort.initialize(request.productId(), request.initialStock());
 
@@ -56,7 +58,7 @@ public class ExperimentOrchestrator {
         int failureCount = 0;
 
         try (ThreadExecutionStrategy threadExecutionStrategy =
-                     threadExecutionStrategyFactory.create(request.threadModel())) {
+                     threadExecutionStrategyFactory.create(request.threadModel(), effectiveConcurrency)) {
 
             List<CompletableFuture<OrderResult>> futures = new ArrayList<>(request.totalRequests());
             for (int i = 0; i < request.totalRequests(); i++) {

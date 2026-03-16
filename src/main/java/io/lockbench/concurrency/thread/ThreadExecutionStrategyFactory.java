@@ -24,6 +24,13 @@ public class ThreadExecutionStrategyFactory {
         };
     }
 
+    public ThreadExecutionStrategy create(ThreadModelType threadModelType, int concurrency) {
+        return switch (threadModelType) {
+            case PLATFORM -> new PlatformThreadExecutionStrategy(concurrency);
+            case VIRTUAL -> new VirtualThreadExecutionStrategy(concurrency);
+        };
+    }
+
     public int effectiveConcurrency(ThreadModelType threadModelType) {
         return switch (threadModelType) {
             case PLATFORM -> platformConcurrency;

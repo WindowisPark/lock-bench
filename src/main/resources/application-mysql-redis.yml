@@ -24,9 +24,9 @@ lockbench:
   redis-lock:
     enabled: true
     ttl-millis: 8000
-    max-retries: 15
+    max-retries: 10
     base-backoff-millis: 10
-    max-backoff-millis: 500
+    max-backoff-millis: 200
   thread-fixed:
     platform-concurrency: 200
     virtual-concurrency: 200
