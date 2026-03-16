@@ -40,7 +40,7 @@
 - 수정 후: `sleep = [0, cap]` (표준 full-jitter exponential backoff)
 - 참조: `docs/v2-backoff-fix-summary-2026-02-20.md`
 
-### Sprint 3: 관측 가능성 ⚠️ (부분 완료)
+### Sprint 3: 관측 가능성 ✅ 완료
 
 #### Lock Bleed 실험 ✅
 
@@ -139,8 +139,8 @@ lockbench:
 - [x] Sprint 3 부분 완료 (Lock Bleed)
 - [x] Sprint 2 튜닝3 실험 완료 (FAIL — 구조적 한계 확인)
 - [x] Sprint 3 JFR 실험 완료 (InnoDB 행 락 직렬화가 주 병목, GC/JVM 동기화 무관)
-- [ ] 산출물 전체 링크 확인
-- [ ] v3 로드맵 작성
+- [x] 산출물 전체 링크 확인
+- [x] v3 로드맵 작성
 
 ---
 
@@ -152,4 +152,4 @@ v2에서 달성한 핵심 성과:
 3. **Lock Bleed 검증** — PESSIMISTIC_LOCK의 커넥션 풀 고갈 → 읽기 차단 정량화 (p95 30초, fail 20%)
 4. **Redis 한계 명확화** — VIRTUAL concurrency=200에서 분산락 성공률 목표(99%) 미달 → 구조적 한계 식별
 
-Redis 성공률 개선(튜닝3) 및 JFR 분석은 실험 완료 후 본 문서를 갱신한다.
+5. **JFR 프로파일링으로 병목 원인 확정** — PESSIMISTIC_LOCK 고부하 시 JVM CPU 0~1%, InnoDB Lock_time이 Query_time의 99.5%를 점유하여 DB 행 락 직렬화가 유일한 병목임을 정량 검증 (GC·JVM 동기화 무관)
