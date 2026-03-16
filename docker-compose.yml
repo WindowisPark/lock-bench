@@ -1,0 +1,21 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: lockbench-mysql
+    ports:
+      - "13306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: lockbench
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - lockbench-mysql-data:/var/lib/mysql
+
+  redis:
+    image: redis:7-alpine
+    container_name: lockbench-redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  lockbench-mysql-data:

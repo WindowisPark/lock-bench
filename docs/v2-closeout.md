@@ -10,11 +10,11 @@
 | 항목 | 상태 |
 |---|---|
 | Sprint 1: 측정 정밀도 | ✅ 완료 |
-| Sprint 2: Redis 튜닝 | ⚠️ 튜닝3 실험 결과 필요 |
+| Sprint 2: Redis 튜닝 | ❌ 튜닝3 FAIL — 구조적 한계 확인, 튜닝2(버그수정) 파라미터 확정 |
 | Sprint 3: 관측 가능성 | ⚠️ JFR 실험 결과 필요 (Lock Bleed ✅) |
 | Sprint 4: CI/자동화 | ❌ v3 이관 |
 
-> **판정**: 튜닝3 및 JFR 실험 완료 후 최종 판정 갱신 필요
+> **판정**: 튜닝3 FAIL 확정 (2026-03-16). JFR 실험 완료 후 최종 종료 판정.
 
 ---
 
@@ -33,7 +33,7 @@
 | 튜닝1 | TTL 5000, retries 5, backoff 50~500ms | ~79% | ~3500ms | FAIL |
 | 튜닝2 (버그 포함) | TTL 8000, retries 10, backoff 10~200ms | 90.4% | 2103ms | FAIL |
 | 버그수정 후 재실험 | 동일 파라미터, full-jitter 수정 | 84.8% | 819ms | FAIL |
-| **튜닝3** | retries 15, backoff 10~**500**ms | *실험 결과 대기* | *실험 결과 대기* | *대기* |
+| **튜닝3** | retries 15, backoff 10~**500**ms | 73.6% | 2957ms | **FAIL (악화)** |
 
 **핵심 버그 수정**: `RedisDistributedLockStrategy.backoff()` full-jitter 버그
 - 수정 전: `sleep = baseDelay + [0, baseDelay]` → 실제 범위 `[baseDelay, 2×baseDelay]`
@@ -80,7 +80,7 @@ PESSIMISTIC_LOCK이 HikariCP 풀(기본 10) 고갈 시 무관한 읽기 API까�
 | v2 Lock Bleed 실험 | `docs/v2-lock-bleed-summary-2026-02-21.md` | ✅ |
 | v2 Redis 관측 가능성 절차 | `docs/v2-mysql-observability.md` | ✅ |
 | v2 병목 분석 | `docs/v2-bottleneck-analysis.md` | ✅ |
-| **v2 Redis 튜닝3** | `docs/v2-redis-tuning3-summary-2026-03-11.md` | ⚠️ 실험 필요 |
+| **v2 Redis 튜닝3** | `docs/v2-redis-tuning3-summary-2026-03-11.md` | ✅ FAIL 확정 (2026-03-16) |
 | **v2 JFR 분석** | `docs/v2-jfr-pessimistic-summary-2026-03-11.md` | ⚠️ 실험 필요 |
 
 ---
@@ -96,18 +96,21 @@ PESSIMISTIC_LOCK이 HikariCP 풀(기본 10) 고갈 시 무관한 읽기 API까�
 | REDIS_DISTRIBUTED_LOCK | PLATFORM | 분산 환경에서 낙관적 락 대안 | concurrency ≤ 100 권장 (200에서 성공률 미달) |
 | NO_LOCK | VIRTUAL | 성능 측정 기준선 전용 | 프로덕션 금지 |
 
-### Redis 분산락 권장 파라미터 (튜닝3 결과 반영 예정)
+### Redis 분산락 권장 파라미터 (튜닝2 버그수정 값 확정)
 
 ```yaml
 lockbench:
   redis-lock:
     ttl-millis: 8000
-    max-retries: 15
+    max-retries: 10          # 튜닝3(15)은 악화 → 10 유지
     base-backoff-millis: 10
-    max-backoff-millis: 500
+    max-backoff-millis: 200   # 튜닝3(500)은 악화 → 200 유지
 ```
 
-> ⚠️ 튜닝3 실험 결과에 따라 권장값 갱신 필요
+> 튜닝3(retries 15, backoff 500ms)은 성공률 74.5%/73.6%로 튜닝2(98.8%/84.8%) 대비 전면 악화.
+> 원인: backoff cap 확대 → 빈 슬롯 놓침 증가. 상세 분석: `docs/v2-redis-tuning3-summary-2026-03-11.md`
+>
+> **concurrency=200에서 Redis 분산락 99% 달성은 구조적으로 불가능. concurrency ≤ 100 권장.**
 
 ---
 
@@ -133,7 +136,7 @@ lockbench:
 
 - [x] Sprint 1 완료 (측정 정밀도)
 - [x] Sprint 3 부분 완료 (Lock Bleed)
-- [ ] Sprint 2 튜닝3 실험 완료
+- [x] Sprint 2 튜닝3 실험 완료 (FAIL — 구조적 한계 확인)
 - [ ] Sprint 3 JFR 실험 완료
 - [ ] 산출물 전체 링크 확인
 - [ ] v3 로드맵 작성
