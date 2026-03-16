@@ -11,10 +11,10 @@
 |---|---|
 | Sprint 1: 측정 정밀도 | ✅ 완료 |
 | Sprint 2: Redis 튜닝 | ❌ 튜닝3 FAIL — 구조적 한계 확인, 튜닝2(버그수정) 파라미터 확정 |
-| Sprint 3: 관측 가능성 | ⚠️ JFR 실험 결과 필요 (Lock Bleed ✅) |
+| Sprint 3: 관측 가능성 | ✅ 완료 (Lock Bleed ✅, JFR 분석 ✅) |
 | Sprint 4: CI/자동화 | ❌ v3 이관 |
 
-> **판정**: 튜닝3 FAIL 확정 (2026-03-16). JFR 실험 완료 후 최종 종료 판정.
+> **판정**: v2 종료 승인 (2026-03-16). 튜닝3 FAIL 확정, JFR 분석 완료.
 
 ---
 
@@ -59,7 +59,8 @@ PESSIMISTIC_LOCK이 HikariCP 풀(기본 10) 고갈 시 무관한 읽기 API까�
 
 - 설정 완료: `build.gradle.kts` bootRun JFR jvmArgs 추가
 - 시나리오: `s4-pessimistic-stability.js` (PESSIMISTIC_LOCK 고부하)
-- **실험 실행 필요** → 완료 후 `docs/v2-jfr-pessimistic-summary-2026-03-11.md` 갱신
+- **실험 완료 (2026-03-16)**: JVM CPU 0~1%(DB 락 대기 지배), InnoDB Lock_time이 Query_time의 99.5%, GC 무관
+- 결과: `docs/v2-jfr-pessimistic-summary-2026-03-11.md`
 
 ### Sprint 4: CI / 자동화 ❌ → v3 이관
 
@@ -81,7 +82,7 @@ PESSIMISTIC_LOCK이 HikariCP 풀(기본 10) 고갈 시 무관한 읽기 API까�
 | v2 Redis 관측 가능성 절차 | `docs/v2-mysql-observability.md` | ✅ |
 | v2 병목 분석 | `docs/v2-bottleneck-analysis.md` | ✅ |
 | **v2 Redis 튜닝3** | `docs/v2-redis-tuning3-summary-2026-03-11.md` | ✅ FAIL 확정 (2026-03-16) |
-| **v2 JFR 분석** | `docs/v2-jfr-pessimistic-summary-2026-03-11.md` | ⚠️ 실험 필요 |
+| **v2 JFR 분석** | `docs/v2-jfr-pessimistic-summary-2026-03-11.md` | ✅ 완료 (2026-03-16) |
 
 ---
 
@@ -137,7 +138,7 @@ lockbench:
 - [x] Sprint 1 완료 (측정 정밀도)
 - [x] Sprint 3 부분 완료 (Lock Bleed)
 - [x] Sprint 2 튜닝3 실험 완료 (FAIL — 구조적 한계 확인)
-- [ ] Sprint 3 JFR 실험 완료
+- [x] Sprint 3 JFR 실험 완료 (InnoDB 행 락 직렬화가 주 병목, GC/JVM 동기화 무관)
 - [ ] 산출물 전체 링크 확인
 - [ ] v3 로드맵 작성
 
