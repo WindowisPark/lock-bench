@@ -5,6 +5,7 @@ param(
     [int]$InitialStock = 10000,
     [int]$Quantity = 1,
     [int]$OptimisticRetries = 5,
+    [string[]]$LockStrategies = @("NO_LOCK", "OPTIMISTIC_LOCK", "PESSIMISTIC_LOCK", "REDIS_DISTRIBUTED_LOCK", "REDISSON_PUB_SUB_LOCK"),
     [string]$OutDir = ""
 )
 
@@ -20,7 +21,7 @@ New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $scenarioPath = Join-Path $PSScriptRoot "scenarios\run-single-combo.js"
 
 $threads = @("PLATFORM", "VIRTUAL")
-$locks = @("NO_LOCK", "OPTIMISTIC_LOCK", "PESSIMISTIC_LOCK", "REDIS_DISTRIBUTED_LOCK")
+$locks = $LockStrategies
 
 $rows = @()
 

@@ -3,7 +3,7 @@ spring:
     activate:
       on-profile: mysql-redis
   datasource:
-    url: ${MYSQL_JDBC_URL:jdbc:mysql://localhost:3306/lockbench?serverTimezone=UTC&characterEncoding=UTF-8}
+    url: ${MYSQL_JDBC_URL:jdbc:mysql://localhost:13306/lockbench?serverTimezone=UTC&characterEncoding=UTF-8}
     username: ${MYSQL_USERNAME:root}
     password: ${MYSQL_PASSWORD:root}
   jpa:
@@ -27,6 +27,11 @@ lockbench:
     max-retries: 10
     base-backoff-millis: 10
     max-backoff-millis: 200
+  redisson-lock:
+    enabled: true
+    wait-time-millis: ${REDISSON_WAIT_TIME_MILLIS:10000}
+    lease-time-millis: ${REDISSON_LEASE_TIME_MILLIS:8000}
   thread-fixed:
     platform-concurrency: 200
     virtual-concurrency: 200
+
