@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LockBench v3 Experiment Report (Part 2) - 2026-04-09</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f172a; --card: #1e293b; --border: #334155; --text: #e2e8f0;
+    --muted: #94a3b8; --accent: #38bdf8; --green: #4ade80; --red: #f87171;
+    --yellow: #fbbf24; --purple: #a78bfa; --orange: #fb923c; --pink: #f472b6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; padding: 2rem; }
+  .container { max-width: 1400px; margin: 0 auto; }
+  h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.25rem; background: linear-gradient(135deg, var(--accent), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 2rem; }
+  .section { margin-bottom: 3rem; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem 2rem; }
+  .section h2 { font-size: 1.35rem; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.5rem; }
+  .badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+  .badge-pass { background: rgba(74,222,128,0.15); color: var(--green); }
+  .badge-fail { background: rgba(248,113,113,0.15); color: var(--red); }
+  .badge-partial { background: rgba(251,191,36,0.15); color: var(--yellow); }
+  .badge-new { background: rgba(167,139,250,0.15); color: var(--purple); }
+  .desc { color: var(--muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
+  .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+  .chart-box { background: rgba(15,23,42,0.5); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+  .chart-box h3 { font-size: 0.9rem; color: var(--muted); margin-bottom: 0.75rem; font-weight: 500; }
+  .chart-full { grid-column: 1 / -1; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 1rem; }
+  th, td { padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  td { font-variant-numeric: tabular-nums; }
+  .val-pass { color: var(--green); font-weight: 600; }
+  .val-fail { color: var(--red); font-weight: 600; }
+  .val-warn { color: var(--yellow); font-weight: 600; }
+  .insight-box { background: rgba(56,189,248,0.08); border-left: 3px solid var(--accent); padding: 1rem 1.25rem; border-radius: 0 8px 8px 0; margin-top: 1.5rem; font-size: 0.88rem; }
+  .insight-box h4 { color: var(--accent); margin-bottom: 0.5rem; font-size: 0.9rem; }
+  .insight-box li { margin-left: 1.25rem; margin-bottom: 0.3rem; }
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+  .kpi { background: rgba(15,23,42,0.5); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; text-align: center; }
+  .kpi .label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .kpi .value { font-size: 1.6rem; font-weight: 700; margin-top: 0.25rem; }
+  .kpi .detail { font-size: 0.72rem; color: var(--muted); margin-top: 0.2rem; }
+  @media (max-width: 900px) { .chart-row { grid-template-columns: 1fr; } .kpi-row { grid-template-columns: repeat(2, 1fr); } }
+  footer { text-align: center; color: var(--muted); font-size: 0.75rem; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>LockBench v3 Experiment Report (Part 2)</h1>
+<p class="subtitle">2026-04-09 | Scenarios A, B, C | MySQL 8.0 + Redis 7 | Java 21 | 1000 requests per run</p>
+
+<!-- ===== SCENARIO A ===== -->
+<div class="section">
+  <h2>A. OPTIMISTIC_LOCK Retry Tuning <span class="badge badge-partial">Structural Limit</span></h2>
+  <p class="desc">OPTIMISTIC_LOCK | full-jitter backoff (5-200ms) | retry 5/10/20/30/50 | concurrency=200 | MySQL standalone</p>
+
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="label">Best Success Rate</div>
+      <div class="value" style="color:var(--green);">99.9%</div>
+      <div class="detail">VIRTUAL retry=50</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Best p95 at 99%+</div>
+      <div class="value" style="color:var(--red);">8,683ms</div>
+      <div class="detail">VIRTUAL retry=30</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Backoff Bug Fix Impact</div>
+      <div class="value" style="color:var(--accent);">+7%</div>
+      <div class="detail">retry=5: 45% -> 52% (VIRTUAL)</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Verdict</div>
+      <div class="value" style="color:var(--yellow);font-size:1rem;">High latency</div>
+      <div class="detail">99%+ possible but p95 > 8s</div>
+    </div>
+  </div>
+
+  <div class="chart-row">
+    <div class="chart-box">
+      <h3>Success Rate by Retry Count (%)</h3>
+      <canvas id="a-success"></canvas>
+    </div>
+    <div class="chart-box">
+      <h3>p95 Latency by Retry Count (ms)</h3>
+      <canvas id="a-p95"></canvas>
+    </div>
+  </div>
+  <div class="chart-row">
+    <div class="chart-box chart-full">
+      <h3>VERSION_CONFLICT Count by Retry</h3>
+      <canvas id="a-conflicts"></canvas>
+    </div>
+  </div>
+
+  <table>
+    <thead><tr><th>Thread</th><th>Retry</th><th>Success</th><th>p95 (ms)</th><th>Throughput</th><th>VERSION_CONFLICT</th></tr></thead>
+    <tbody>
+      <tr><td>PLATFORM</td><td>5</td><td class="val-fail">45.7%</td><td>3,027</td><td>50 rps</td><td>543</td></tr>
+      <tr><td>PLATFORM</td><td>10</td><td class="val-fail">69.2%</td><td>5,492</td><td>48 rps</td><td>308</td></tr>
+      <tr><td>PLATFORM</td><td>20</td><td class="val-fail">89.0%</td><td>9,798</td><td>44 rps</td><td>110</td></tr>
+      <tr><td>PLATFORM</td><td>30</td><td class="val-warn">96.0%</td><td>11,142</td><td>51 rps</td><td>40</td></tr>
+      <tr><td>PLATFORM</td><td>50</td><td class="val-pass">99.8%</td><td>11,872</td><td>49 rps</td><td>2</td></tr>
+      <tr><td>VIRTUAL</td><td>5</td><td class="val-fail">52.4%</td><td>2,491</td><td>61 rps</td><td>476</td></tr>
+      <tr><td>VIRTUAL</td><td>10</td><td class="val-fail">78.4%</td><td>4,752</td><td>54 rps</td><td>216</td></tr>
+      <tr><td>VIRTUAL</td><td>20</td><td class="val-warn">96.4%</td><td>5,397</td><td>78 rps</td><td>36</td></tr>
+      <tr><td>VIRTUAL</td><td>30</td><td class="val-pass">99.1%</td><td>8,683</td><td>58 rps</td><td>9</td></tr>
+      <tr><td>VIRTUAL</td><td>50</td><td class="val-pass">99.9%</td><td>11,714</td><td>54 rps</td><td>1</td></tr>
+    </tbody>
+  </table>
+
+  <div class="insight-box">
+    <h4>Key Insights</h4>
+    <ul>
+      <li><b>retry=50에서 99.8~99.9% 달성 가능</b>하지만 p95가 11~12초로 실용 불가</li>
+      <li><b>VIRTUAL이 PLATFORM보다 동일 retry에서 성공률 6~8% 높음</b> — Virtual Thread의 I/O 양보 특성이 backoff 효과를 증폭</li>
+      <li><b>Throughput은 retry 수와 무관하게 44~78 rps</b> — DB row lock이 진정한 병목이므로 retry가 throughput을 바꾸지 못함</li>
+      <li><b>결론: c=200에서 OPTIMISTIC은 부적합.</b> 사용하려면 concurrency를 10~20으로 제한해야 함</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ===== SCENARIO B ===== -->
+<div class="section">
+  <h2>B. Routing DataSource — Lock Bleed <span class="badge badge-fail">Insufficient</span></h2>
+  <p class="desc">PESSIMISTIC_LOCK | PLATFORM c=200 | delay=50ms | 읽기/쓰기 커넥션 풀 분리 vs 단일 풀</p>
+
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="label">Single Pool Read p95</div>
+      <div class="value" style="color:var(--red);">11.74s</div>
+      <div class="detail">84 reads / 30s</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Routing Pool Read p95</div>
+      <div class="value" style="color:var(--red);">11.40s</div>
+      <div class="detail">90 reads / 30s</div>
+    </div>
+    <div class="kpi">
+      <div class="label">p95 Improvement</div>
+      <div class="value" style="color:var(--yellow);">3%</div>
+      <div class="detail">11.74s -> 11.40s</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Root Cause</div>
+      <div class="value" style="color:var(--muted);font-size:0.9rem;">InnoDB Engine</div>
+      <div class="detail">Lock manager contention</div>
+    </div>
+  </div>
+
+  <div class="chart-row">
+    <div class="chart-box">
+      <h3>Read p95 Latency: Single vs Routing Pool (seconds)</h3>
+      <canvas id="b-p95"></canvas>
+    </div>
+    <div class="chart-box">
+      <h3>Read Latency Distribution (seconds)</h3>
+      <canvas id="b-dist"></canvas>
+    </div>
+  </div>
+
+  <table>
+    <thead><tr><th>Configuration</th><th>Read p95 (s)</th><th>Read Median (s)</th><th>Read Max (s)</th><th>Reads Served</th><th>Write Success</th></tr></thead>
+    <tbody>
+      <tr><td>Single Pool (pool=10)</td><td class="val-fail">11.74</td><td>4.27</td><td>22.75</td><td>84</td><td class="val-pass">500/500</td></tr>
+      <tr><td>Routing Pool (w=10, r=10)</td><td class="val-fail">11.40</td><td>3.26</td><td>22.33</td><td>90</td><td class="val-pass">500/500</td></tr>
+    </tbody>
+  </table>
+
+  <div class="insight-box">
+    <h4>Key Insights</h4>
+    <ul>
+      <li><b>커넥션 풀 분리만으로 Lock Bleed 해소 불가</b> (p95 개선 3%, 목표 500ms 대비 22배)</li>
+      <li><b>Routing DataSource는 정상 작동</b> — write-pool / read-pool 별도 초기화 확인</li>
+      <li><b>병목이 HikariCP가 아닌 InnoDB</b>: 200개 트랜잭션이 동일 row에 SELECT FOR UPDATE를 연쇄로 걸면서 MySQL lock manager 자체에 부하 발생</li>
+      <li><b>근본적 해결책</b>: (1) Redis 분산락으로 전환하여 DB 커넥션 미점유, (2) CQRS + 읽기 레플리카, (3) 서로 다른 productId로 분산</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ===== SCENARIO C ===== -->
+<div class="section">
+  <h2>C. Redisson Fair Lock vs Unfair Lock <span class="badge badge-pass">Fair Lock Wins</span></h2>
+  <p class="desc">REDISSON_FAIR_LOCK vs REDISSON_PUB_SUB_LOCK | MySQL+Redis | concurrency 10/20/50 | 1000 requests</p>
+
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="label">Fair Lock PASS Range</div>
+      <div class="value" style="color:var(--green);font-size:1.1rem;">PLATFORM c&le;50</div>
+      <div class="detail">vs Unfair: c&le;20</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Best p95 Improvement</div>
+      <div class="value" style="color:var(--accent);">71%</div>
+      <div class="detail">VIRTUAL c=50: 3030 -> 868ms</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Fair c=50 PLATFORM p95</div>
+      <div class="value" style="color:var(--green);">427ms</div>
+      <div class="detail">PASS (< 500ms)</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Success Rate</div>
+      <div class="value" style="color:var(--green);">100%</div>
+      <div class="detail">Both, all conditions</div>
+    </div>
+  </div>
+
+  <div class="chart-row">
+    <div class="chart-box">
+      <h3>p95 Latency: Fair vs Unfair — PLATFORM (ms)</h3>
+      <canvas id="c-p95-platform"></canvas>
+    </div>
+    <div class="chart-box">
+      <h3>p95 Latency: Fair vs Unfair — VIRTUAL (ms)</h3>
+      <canvas id="c-p95-virtual"></canvas>
+    </div>
+  </div>
+  <div class="chart-row">
+    <div class="chart-box chart-full">
+      <h3>p95 Improvement: Fair Lock vs Unfair Lock (%)</h3>
+      <canvas id="c-improvement"></canvas>
+    </div>
+  </div>
+
+  <table>
+    <thead><tr><th>Thread</th><th>c</th><th>Unfair p95</th><th>Fair p95</th><th>Improvement</th><th>Fair PASS?</th><th>Unfair PASS?</th></tr></thead>
+    <tbody>
+      <tr><td>PLATFORM</td><td>10</td><td>293ms</td><td class="val-pass">102ms</td><td>65%</td><td class="val-pass">PASS</td><td class="val-pass">PASS</td></tr>
+      <tr><td>PLATFORM</td><td>20</td><td>509ms</td><td class="val-pass">170ms</td><td>67%</td><td class="val-pass">PASS</td><td class="val-fail">FAIL</td></tr>
+      <tr><td>PLATFORM</td><td>50</td><td>1,436ms</td><td class="val-pass">427ms</td><td>70%</td><td class="val-pass">PASS</td><td class="val-fail">FAIL</td></tr>
+      <tr><td>VIRTUAL</td><td>10</td><td>285ms</td><td class="val-pass">90ms</td><td>68%</td><td class="val-pass">PASS</td><td class="val-pass">PASS</td></tr>
+      <tr><td>VIRTUAL</td><td>20</td><td>739ms</td><td class="val-pass">355ms</td><td>52%</td><td class="val-pass">PASS</td><td class="val-fail">FAIL</td></tr>
+      <tr><td>VIRTUAL</td><td>50</td><td>3,030ms</td><td class="val-warn">868ms</td><td>71%</td><td class="val-fail">FAIL</td><td class="val-fail">FAIL</td></tr>
+    </tbody>
+  </table>
+
+  <div class="insight-box">
+    <h4>Key Insights</h4>
+    <ul>
+      <li><b>Fair Lock이 전 구간 52~71% p95 개선</b> — FIFO 대기열이 tail latency를 균등하게 분산</li>
+      <li><b>PLATFORM + Fair Lock c=50에서 p95=427ms로 PASS</b> — Unfair(1,436ms)와 3.4배 차이</li>
+      <li><b>Concurrency ceiling 확장</b>: Unfair PASS 범위 c&le;20 -> Fair c&le;50 (PLATFORM), c&le;20 (VIRTUAL)</li>
+      <li><b>Throughput은 유사</b> (122~131 rps) — Fair Lock의 순서 보장이 throughput 페널티를 유발하지 않음</li>
+      <li><b>최종 권장: Redisson Fair Lock + PLATFORM + c&le;50</b>이 분산 환경 최적 조합</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ===== COMBINED CONCLUSIONS ===== -->
+<div class="section" style="border-color: var(--accent);">
+  <h2>Combined Conclusions — v3 Full Results</h2>
+
+  <table>
+    <thead><tr><th>Strategy</th><th>Best Use Case</th><th>Max Concurrency (PASS)</th><th>Key Limitation</th></tr></thead>
+    <tbody>
+      <tr>
+        <td style="color:var(--green);">Redisson Fair Lock</td>
+        <td>Distributed, moderate-high load</td>
+        <td class="val-pass">PLATFORM c&le;50, VIRTUAL c&le;20</td>
+        <td>Redis dependency</td>
+      </tr>
+      <tr>
+        <td style="color:var(--accent);">Redisson Pub-Sub (Unfair)</td>
+        <td>Distributed, low-moderate load</td>
+        <td class="val-warn">PLATFORM c&le;20</td>
+        <td>Tail latency at high c</td>
+      </tr>
+      <tr>
+        <td style="color:var(--accent);">PESSIMISTIC_LOCK</td>
+        <td>Single DB, correctness first</td>
+        <td class="val-pass">PLATFORM c=200</td>
+        <td>Lock Bleed (blocks reads)</td>
+      </tr>
+      <tr>
+        <td style="color:var(--yellow);">OPTIMISTIC_LOCK</td>
+        <td>Low contention only</td>
+        <td class="val-fail">c&le;20 (estimated)</td>
+        <td>p95 > 8s at c=200 even with retry=50</td>
+      </tr>
+      <tr>
+        <td style="color:var(--red);">Routing DataSource</td>
+        <td>Does NOT fix Lock Bleed</td>
+        <td>-</td>
+        <td>InnoDB lock manager is the bottleneck</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="insight-box" style="border-left-color: var(--purple); background: rgba(167,139,250,0.08); margin-top: 1.5rem;">
+    <h4 style="color: var(--purple);">Evolution of Concurrency Ceiling (PASS: 99%+ success & p95 &lt; 500ms)</h4>
+    <ul>
+      <li><b>v2 Lettuce Spinlock</b>: c &le; 20 (tuning4)</li>
+      <li><b>v3 Redisson Unfair</b>: c &le; 20 (PLATFORM) — same ceiling, but 0% LOCK_TIMEOUT</li>
+      <li><b>v3 Redisson Fair</b>: <b>c &le; 50 (PLATFORM)</b> — 2.5x expansion over Unfair</li>
+    </ul>
+  </div>
+</div>
+
+<footer>
+  Generated by LockBench v3 | 2026-04-09T11:34:02+09:00 | Part 2 of 2<br>
+  Part 1: <a href="v3-experiment-report-2026-04-08.html" style="color:var(--accent)">v3-experiment-report-2026-04-08.html</a> (Scenarios 1-3)
+</footer>
+
+</div>
+
+<script>
+const C = {
+  accent: '#38bdf8', green: '#4ade80', red: '#f87171', yellow: '#fbbf24',
+  purple: '#a78bfa', orange: '#fb923c', pink: '#f472b6',
+  accentA: 'rgba(56,189,248,0.7)', greenA: 'rgba(74,222,128,0.7)',
+  redA: 'rgba(248,113,113,0.7)', yellowA: 'rgba(251,191,36,0.7)',
+  purpleA: 'rgba(167,139,250,0.7)', orangeA: 'rgba(251,146,60,0.7)',
+};
+const G = { color: 'rgba(51,65,85,0.5)' };
+const T = { color: '#94a3b8' };
+const D = { responsive:true, maintainAspectRatio:true,
+  plugins:{legend:{labels:{color:'#e2e8f0',padding:12,usePointStyle:true,pointStyleWidth:10}}},
+  scales:{x:{grid:G,ticks:T},y:{grid:G,ticks:T,beginAtZero:true}}
+};
+function O(o={}){return JSON.parse(JSON.stringify({...D,...o}));}
+
+// ===== A: OPTIMISTIC RETRY =====
+const aRetries = ['5', '10', '20', '30', '50'];
+
+new Chart(document.getElementById('a-success'), {
+  type: 'line', data: { labels: aRetries, datasets: [
+    {label:'PLATFORM',data:[45.7,69.2,89.0,96.0,99.8],borderColor:C.accent,backgroundColor:'rgba(56,189,248,0.15)',fill:true,tension:0.3,pointRadius:5},
+    {label:'VIRTUAL',data:[52.4,78.4,96.4,99.1,99.9],borderColor:C.purple,backgroundColor:'rgba(167,139,250,0.15)',fill:true,tension:0.3,pointRadius:5},
+  ]}, options:{...O(),scales:{...D.scales,y:{...D.scales.y,min:30,max:105,ticks:{...T,callback:v=>v+'%'}}}}
+});
+
+new Chart(document.getElementById('a-p95'), {
+  type: 'line', data: { labels: aRetries, datasets: [
+    {label:'PLATFORM',data:[3027,5492,9798,11142,11872],borderColor:C.accent,backgroundColor:'rgba(56,189,248,0.15)',fill:true,tension:0.3,pointRadius:5},
+    {label:'VIRTUAL',data:[2491,4752,5397,8683,11714],borderColor:C.purple,backgroundColor:'rgba(167,139,250,0.15)',fill:true,tension:0.3,pointRadius:5},
+  ]}, options:O()
+});
+
+new Chart(document.getElementById('a-conflicts'), {
+  type: 'bar', data: { labels: aRetries, datasets: [
+    {label:'PLATFORM',data:[543,308,110,40,2],backgroundColor:C.accentA,borderColor:C.accent,borderWidth:1},
+    {label:'VIRTUAL',data:[476,216,36,9,1],backgroundColor:C.purpleA,borderColor:C.purple,borderWidth:1},
+  ]}, options:O()
+});
+
+// ===== B: ROUTING DATASOURCE =====
+new Chart(document.getElementById('b-p95'), {
+  type: 'bar', data: { labels: ['Single Pool', 'Routing Pool'], datasets: [{
+    label:'Read p95 (s)',data:[11.74,11.40],
+    backgroundColor:[C.redA,C.orangeA],borderColor:[C.red,C.orange],borderWidth:1
+  }]}, options:O()
+});
+
+new Chart(document.getElementById('b-dist'), {
+  type: 'bar', data: { labels: ['Single Pool', 'Routing Pool'], datasets: [
+    {label:'Median',data:[4.27,3.26],backgroundColor:C.accentA,borderColor:C.accent,borderWidth:1},
+    {label:'p95',data:[11.74,11.40],backgroundColor:C.orangeA,borderColor:C.orange,borderWidth:1},
+    {label:'Max',data:[22.75,22.33],backgroundColor:C.redA,borderColor:C.red,borderWidth:1},
+  ]}, options:O()
+});
+
+// ===== C: FAIR vs UNFAIR =====
+const cConc = ['c=10','c=20','c=50'];
+
+new Chart(document.getElementById('c-p95-platform'), {
+  type: 'bar', data: { labels: cConc, datasets: [
+    {label:'Unfair (Pub-Sub)',data:[293,509,1436],backgroundColor:C.orangeA,borderColor:C.orange,borderWidth:1},
+    {label:'Fair Lock',data:[102,170,427],backgroundColor:C.greenA,borderColor:C.green,borderWidth:1},
+  ]}, options:O()
+});
+
+new Chart(document.getElementById('c-p95-virtual'), {
+  type: 'bar', data: { labels: cConc, datasets: [
+    {label:'Unfair (Pub-Sub)',data:[285,739,3030],backgroundColor:C.orangeA,borderColor:C.orange,borderWidth:1},
+    {label:'Fair Lock',data:[90,355,868],backgroundColor:C.greenA,borderColor:C.green,borderWidth:1},
+  ]}, options:O()
+});
+
+new Chart(document.getElementById('c-improvement'), {
+  type: 'bar', data: { labels: ['PLAT c=10','PLAT c=20','PLAT c=50','VIRT c=10','VIRT c=20','VIRT c=50'], datasets: [{
+    label:'p95 Improvement (%)',data:[65,67,70,68,52,71],
+    backgroundColor:[C.greenA,C.greenA,C.greenA,C.purpleA,C.purpleA,C.purpleA],
+    borderColor:[C.green,C.green,C.green,C.purple,C.purple,C.purple],borderWidth:1
+  }]}, options:{...O(),scales:{...D.scales,y:{...D.scales.y,max:100,ticks:{...T,callback:v=>v+'%'}}}}
+});
+</script>
+</body>
+</html>
