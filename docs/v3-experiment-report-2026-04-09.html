@@ -254,50 +254,96 @@
 
 <!-- ===== COMBINED CONCLUSIONS ===== -->
 <div class="section" style="border-color: var(--accent);">
-  <h2>Combined Conclusions — v3 Full Results</h2>
+  <h2>v3 실험을 통해 얻은 교훈</h2>
 
+  <div class="insight-box" style="border-left-color: var(--green); background: rgba(74,222,128,0.06); margin-top: 0.5rem;">
+    <h4 style="color: var(--green);">1. "재시도를 늘리면 성공률이 올라간다"는 반만 맞는 말이다</h4>
+    <p>OPTIMISTIC_LOCK에 retry를 5에서 50으로 10배 늘리니 성공률은 45% &rarr; 99.9%로 올라갔다.
+    하지만 p95가 3초에서 12초로 4배 늘었다. <b>성공은 하되, 사용자가 기다리다 떠나는 성공</b>이다.
+    재시도는 "실패를 감추는 도구"이지 "성능을 높이는 도구"가 아니었다.</p>
+  </div>
+
+  <div class="insight-box" style="border-left-color: var(--red); background: rgba(248,113,113,0.06); margin-top: 1rem;">
+    <h4 style="color: var(--red);">2. 커넥션 풀을 아무리 분리해도, 진짜 병목이 DB 엔진이면 소용없다</h4>
+    <p>Lock Bleed를 해결하려고 읽기/쓰기 HikariCP 풀을 완전히 분리했다. 결과는 p95가 11.74초에서 11.40초.
+    <b>3% 개선.</b> 풀은 멀쩡했다 &mdash; 문제는 200개 트랜잭션이 같은 row에 SELECT FOR UPDATE를 걸면서
+    InnoDB lock manager 자체가 느려지는 것이었다. 병목의 위치를 정확히 모르면, 엉뚱한 곳을 최적화하게 된다.</p>
+  </div>
+
+  <div class="insight-box" style="border-left-color: var(--accent); background: rgba(56,189,248,0.06); margin-top: 1rem;">
+    <h4 style="color: var(--accent);">3. 공정(Fair)한 락이 빠른 락보다 결과적으로 더 빠르다</h4>
+    <p>직관적으로 "순서를 안 지키는 놈이 더 빠르지 않나?" 싶었다. 실제로는 정반대였다.
+    Fair Lock이 Unfair보다 p95를 <b>52~71%</b> 줄였다. 이유는 단순하다 &mdash;
+    비공정 락에서는 운 나쁜 스레드가 계속 밀려나면서 tail latency가 폭발한다.
+    공정 대기열은 "최악의 경우"를 억제해서, 평균도 최악도 함께 좋아진다.</p>
+  </div>
+
+  <div class="insight-box" style="border-left-color: var(--yellow); background: rgba(251,191,36,0.06); margin-top: 1rem;">
+    <h4 style="color: var(--yellow);">4. PESSIMISTIC_LOCK은 "정합성의 왕"이지만 대가가 크다</h4>
+    <p>MySQL 단독에서 c=200 100% 성공. 데이터 정합성은 완벽하다.
+    하지만 그 대가로 <b>같은 DB의 읽기 API까지 30초씩 멈춘다</b> (Lock Bleed).
+    "내 트랜잭션은 안전해"가 "옆 서비스가 죽어"로 번진다.
+    PESSIMISTIC은 동시성이 낮고 트랜잭션이 짧을 때만 써야 한다.</p>
+  </div>
+
+  <div class="insight-box" style="border-left-color: var(--purple); background: rgba(167,139,250,0.06); margin-top: 1rem;">
+    <h4 style="color: var(--purple);">5. Virtual Thread는 만능이 아니다 &mdash; DB 커넥션 풀이 좁으면 오히려 역효과</h4>
+    <p>Virtual Thread + PESSIMISTIC_LOCK의 throughput은 PLATFORM의 <b>1/3</b>이었다 (75 vs 221 rps).
+    200개 VT가 10개 커넥션을 놓고 경쟁하니, 빠른 컨텍스트 스위칭이 오히려 lock contention을 증폭시켰다.
+    Virtual Thread의 이점은 I/O 대기를 잘 양보하는 것인데, DB 커넥션 풀이 좁으면 "양보할 곳"이 없다.</p>
+  </div>
+
+  <div class="insight-box" style="border-left-color: var(--orange); background: rgba(251,146,60,0.06); margin-top: 1rem;">
+    <h4 style="color: var(--orange);">6. 락 전략 선택은 "어떤 락이 좋은가"가 아니라 "어디서 락을 잡을 것인가"이다</h4>
+    <p>결국 가장 큰 차이를 만든 것은 락의 종류가 아니라 <b>락을 잡는 위치</b>였다.
+    DB에서 잡으면 (PESSIMISTIC/OPTIMISTIC) 커넥션이 묶이고, 같은 DB를 쓰는 모든 것이 영향받는다.
+    Redis에서 잡으면 (Redisson) DB 커넥션은 락 획득 후 순간만 쓰고 즉시 반환한다.
+    <b>Redisson Fair Lock + PLATFORM + c&le;50이 현 시점 최적 조합</b>인 이유가 여기에 있다.</p>
+  </div>
+
+  <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: var(--muted);">전략별 최종 정리</h3>
   <table>
-    <thead><tr><th>Strategy</th><th>Best Use Case</th><th>Max Concurrency (PASS)</th><th>Key Limitation</th></tr></thead>
+    <thead><tr><th>전략</th><th>적합한 상황</th><th>PASS 가능 동시성</th><th>핵심 한계</th></tr></thead>
     <tbody>
       <tr>
         <td style="color:var(--green);">Redisson Fair Lock</td>
-        <td>Distributed, moderate-high load</td>
+        <td>분산 환경, 중~고부하</td>
         <td class="val-pass">PLATFORM c&le;50, VIRTUAL c&le;20</td>
-        <td>Redis dependency</td>
+        <td>Redis 인프라 필요</td>
       </tr>
       <tr>
-        <td style="color:var(--accent);">Redisson Pub-Sub (Unfair)</td>
-        <td>Distributed, low-moderate load</td>
+        <td style="color:var(--accent);">Redisson Pub-Sub (비공정)</td>
+        <td>분산 환경, 저~중부하</td>
         <td class="val-warn">PLATFORM c&le;20</td>
-        <td>Tail latency at high c</td>
+        <td>고동시성에서 tail latency 폭발</td>
       </tr>
       <tr>
         <td style="color:var(--accent);">PESSIMISTIC_LOCK</td>
-        <td>Single DB, correctness first</td>
-        <td class="val-pass">PLATFORM c=200</td>
-        <td>Lock Bleed (blocks reads)</td>
+        <td>단일 DB, 정합성 최우선</td>
+        <td class="val-pass">PLATFORM c=200 (성공률만)</td>
+        <td>Lock Bleed &mdash; 읽기 API까지 차단</td>
       </tr>
       <tr>
         <td style="color:var(--yellow);">OPTIMISTIC_LOCK</td>
-        <td>Low contention only</td>
-        <td class="val-fail">c&le;20 (estimated)</td>
-        <td>p95 > 8s at c=200 even with retry=50</td>
+        <td>충돌 빈도 낮은 환경만</td>
+        <td class="val-fail">c&le;20 추정</td>
+        <td>고경쟁 시 retry 폭발 &rarr; p95 12초</td>
       </tr>
       <tr>
         <td style="color:var(--red);">Routing DataSource</td>
-        <td>Does NOT fix Lock Bleed</td>
+        <td>Lock Bleed 해결 불가</td>
         <td>-</td>
-        <td>InnoDB lock manager is the bottleneck</td>
+        <td>병목이 HikariCP가 아닌 InnoDB 엔진</td>
       </tr>
     </tbody>
   </table>
 
   <div class="insight-box" style="border-left-color: var(--purple); background: rgba(167,139,250,0.08); margin-top: 1.5rem;">
-    <h4 style="color: var(--purple);">Evolution of Concurrency Ceiling (PASS: 99%+ success & p95 &lt; 500ms)</h4>
+    <h4 style="color: var(--purple);">Concurrency Ceiling의 진화 (PASS 기준: 99%+ 성공률 &amp; p95 &lt; 500ms)</h4>
     <ul>
-      <li><b>v2 Lettuce Spinlock</b>: c &le; 20 (tuning4)</li>
-      <li><b>v3 Redisson Unfair</b>: c &le; 20 (PLATFORM) — same ceiling, but 0% LOCK_TIMEOUT</li>
-      <li><b>v3 Redisson Fair</b>: <b>c &le; 50 (PLATFORM)</b> — 2.5x expansion over Unfair</li>
+      <li><b>v2 Lettuce Spinlock</b>: c &le; 20 &mdash; polling 기반의 구조적 한계</li>
+      <li><b>v3 Redisson Unfair</b>: c &le; 20 &mdash; ceiling은 같지만 LOCK_TIMEOUT 0%</li>
+      <li><b>v3 Redisson Fair</b>: <b>c &le; 50</b> &mdash; 공정 대기열로 ceiling 2.5배 확장</li>
     </ul>
   </div>
 </div>
