@@ -1,0 +1,156 @@
+name: Benchmark
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'build.gradle.kts'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  JAVA_VERSION: '21'
+  K6_VERSION: 'v0.56.0'
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      mysql:
+        image: mysql:8.0
+        ports:
+          - 13306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: lockbench
+        options: >-
+          --health-cmd="mysqladmin ping -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install k6
+        run: |
+          curl -sL https://github.com/grafana/k6/releases/download/${{ env.K6_VERSION }}/k6-${{ env.K6_VERSION }}-linux-amd64.tar.gz | tar xz
+          sudo mv k6-${{ env.K6_VERSION }}-linux-amd64/k6 /usr/local/bin/
+          k6 version
+
+      - name: Build
+        run: ./gradlew build -x test
+
+      # ===== Phase 1: MySQL standalone matrix (3 lock × 2 thread) =====
+      - name: Start app (mysql profile)
+        run: |
+          ./gradlew bootRun --args="--spring.profiles.active=mysql" &
+          for i in $(seq 1 30); do
+            curl -s http://localhost:8080/actuator/health | grep -q UP && break
+            sleep 3
+          done
+        env:
+          MYSQL_JDBC_URL: jdbc:mysql://localhost:13306/lockbench?serverTimezone=UTC&characterEncoding=UTF-8
+
+      - name: Run MySQL matrix (NO_LOCK, OPTIMISTIC, PESSIMISTIC)
+        run: |
+          OUTDIR="results/ci-mysql-matrix"
+          mkdir -p "$OUTDIR"
+          for thread in PLATFORM VIRTUAL; do
+            for lock in NO_LOCK OPTIMISTIC_LOCK PESSIMISTIC_LOCK; do
+              CASEID="${thread}__${lock}"
+              echo "=== $CASEID ==="
+              k6 run \
+                -e BASE_URL=http://localhost:8080 \
+                -e THREAD_MODEL=$thread \
+                -e LOCK_STRATEGY=$lock \
+                -e TOTAL_REQUESTS=500 \
+                -e INITIAL_STOCK=5000 \
+                -e CONCURRENCY=100 \
+                -e OPTIMISTIC_RETRIES=10 \
+                -e RESULT_JSON_PATH="$OUTDIR/${CASEID}.json" \
+                src/main/resources/k6/scenarios/run-single-combo.js 2>&1 | \
+                grep -E "(LOCKBENCH_RESULT|✓|✗)" || true
+            done
+          done
+
+      - name: Stop app
+        run: pkill -f 'spring.profiles.active=mysql' || true && sleep 3
+
+      # ===== Phase 2: MySQL+Redis (Lettuce + Redisson + Fair Lock) =====
+      - name: Start app (mysql-redis profile)
+        run: |
+          ./gradlew bootRun --args="--spring.profiles.active=mysql-redis" &
+          for i in $(seq 1 30); do
+            curl -s http://localhost:8080/actuator/health | grep -q UP && break
+            sleep 3
+          done
+        env:
+          MYSQL_JDBC_URL: jdbc:mysql://localhost:13306/lockbench?serverTimezone=UTC&characterEncoding=UTF-8
+
+      - name: Run Redisson vs Lettuce comparison
+        run: |
+          mkdir -p results/ci-redisson
+          k6 run \
+            -e BASE_URL=http://localhost:8080 \
+            -e TOTAL_REQUESTS=500 \
+            -e INITIAL_STOCK=5000 \
+            src/main/resources/k6/scenarios/s8-redisson-vs-lettuce.js 2>&1 | \
+            tee results/ci-redisson/s8-result.log | \
+            grep -E "(===|successRate|LOCKBENCH_RESULTS)" || true
+
+      - name: Run Fair vs Unfair comparison
+        run: |
+          k6 run \
+            -e BASE_URL=http://localhost:8080 \
+            -e TOTAL_REQUESTS=500 \
+            -e INITIAL_STOCK=5000 \
+            src/main/resources/k6/scenarios/s11-redisson-fair-vs-unfair.js 2>&1 | \
+            tee results/ci-redisson/s11-result.log | \
+            grep -E "(===|successRate|LOCKBENCH_RESULTS)" || true
+
+      - name: Stop app
+        run: pkill -f 'spring.profiles.active=mysql-redis' || true
+
+      # ===== Collect results =====
+      - name: Parse and check regression
+        run: |
+          echo "=== CI Benchmark Results ==="
+          cat results/ci-redisson/s8-result.log | grep "LOCKBENCH_RESULTS" | \
+            sed 's/.*LOCKBENCH_RESULTS //' | python3 -m json.tool 2>/dev/null || \
+            echo "(parse skipped)"
+
+          # Regression check: any Redisson success rate below 99%?
+          if grep -q '"successRate":"[0-9][0-9]\.' results/ci-redisson/s8-result.log 2>/dev/null; then
+            echo "::warning::Redisson success rate dropped below 100% in some cases"
+          fi
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ github.sha }}
+          path: results/
+          retention-days: 30

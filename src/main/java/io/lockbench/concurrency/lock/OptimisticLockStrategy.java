@@ -11,9 +11,9 @@ import java.util.concurrent.ThreadLocalRandom;
 @Component
 public class OptimisticLockStrategy implements StockLockStrategy {
 
-    private static final int MAX_OPTIMISTIC_RETRIES = 5;
-    private static final long BASE_BACKOFF_MILLIS = 2L;
-    private static final long MAX_BACKOFF_MILLIS = 32L;
+    private static final int MAX_OPTIMISTIC_RETRIES = 50;
+    private static final long BASE_BACKOFF_MILLIS = 5L;
+    private static final long MAX_BACKOFF_MILLIS = 200L;
 
     private final StockAccessPort stockAccessPort;
 
@@ -61,10 +61,9 @@ public class OptimisticLockStrategy implements StockLockStrategy {
     }
 
     private void backoff(int attempt) {
-        long exponential = BASE_BACKOFF_MILLIS << Math.min(attempt, 4);
-        long baseDelay = Math.min(MAX_BACKOFF_MILLIS, exponential);
-        long jitter = ThreadLocalRandom.current().nextLong(baseDelay + 1);
-        long sleepMillis = baseDelay + jitter;
+        long exponential = BASE_BACKOFF_MILLIS << Math.min(attempt, 10);
+        long cap = Math.min(MAX_BACKOFF_MILLIS, exponential);
+        long sleepMillis = ThreadLocalRandom.current().nextLong(cap + 1);
         try {
             Thread.sleep(sleepMillis);
         } catch (InterruptedException e) {

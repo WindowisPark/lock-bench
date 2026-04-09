@@ -17,6 +17,10 @@ spring:
     open-in-view: false
 
 lockbench:
+  routing-datasource:
+    enabled: ${ROUTING_DS_ENABLED:false}
+    write-pool-size: ${ROUTING_DS_WRITE_POOL:10}
+    read-pool-size: ${ROUTING_DS_READ_POOL:10}
   thread-fixed:
     platform-concurrency: 200
     virtual-concurrency: 200

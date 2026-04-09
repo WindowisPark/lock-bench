@@ -5,7 +5,7 @@ param(
     [int]$InitialStock = 10000,
     [int]$Quantity = 1,
     [int]$OptimisticRetries = 5,
-    [string[]]$LockStrategies = @("NO_LOCK", "OPTIMISTIC_LOCK", "PESSIMISTIC_LOCK", "REDIS_DISTRIBUTED_LOCK", "REDISSON_PUB_SUB_LOCK"),
+    [string[]]$LockStrategies = @("NO_LOCK", "OPTIMISTIC_LOCK", "PESSIMISTIC_LOCK", "REDIS_DISTRIBUTED_LOCK", "REDISSON_PUB_SUB_LOCK", "REDISSON_FAIR_LOCK"),
     [string]$OutDir = ""
 )
 

@@ -1,0 +1,156 @@
+name: JFR Profiling
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/main/java/**'
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: 'k6 scenario to profile'
+        required: false
+        default: 's4-pessimistic-stability.js'
+      duration:
+        description: 'JFR recording duration (seconds)'
+        required: false
+        default: '60'
+
+env:
+  JAVA_VERSION: '21'
+  K6_VERSION: 'v0.56.0'
+
+jobs:
+  jfr-profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      mysql:
+        image: mysql:8.0
+        ports:
+          - 13306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: lockbench
+        options: >-
+          --health-cmd="mysqladmin ping -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install k6
+        run: |
+          curl -sL https://github.com/grafana/k6/releases/download/${{ env.K6_VERSION }}/k6-${{ env.K6_VERSION }}-linux-amd64.tar.gz | tar xz
+          sudo mv k6-${{ env.K6_VERSION }}-linux-amd64/k6 /usr/local/bin/
+
+      - name: Build
+        run: ./gradlew build -x test
+
+      - name: Determine JFR settings
+        id: jfr
+        run: |
+          DURATION="${{ github.event.inputs.duration || '60' }}"
+          SCENARIO="${{ github.event.inputs.scenario || 's4-pessimistic-stability.js' }}"
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          echo "duration=$DURATION" >> "$GITHUB_OUTPUT"
+          echo "scenario=$SCENARIO" >> "$GITHUB_OUTPUT"
+          echo "timestamp=$TIMESTAMP" >> "$GITHUB_OUTPUT"
+          echo "filename=jfr/lockbench-${TIMESTAMP}.jfr" >> "$GITHUB_OUTPUT"
+
+      - name: Start app with JFR (mysql-redis profile)
+        run: |
+          mkdir -p jfr
+          java \
+            -XX:+FlightRecorder \
+            "-XX:StartFlightRecording=duration=${{ steps.jfr.outputs.duration }}s,filename=${{ steps.jfr.outputs.filename }},settings=profile" \
+            -jar build/libs/lockbench-*.jar \
+            --spring.profiles.active=mysql-redis &
+          APP_PID=$!
+          echo "APP_PID=$APP_PID" >> "$GITHUB_ENV"
+          for i in $(seq 1 30); do
+            curl -s http://localhost:8080/actuator/health | grep -q UP && break
+            sleep 3
+          done
+        env:
+          MYSQL_JDBC_URL: jdbc:mysql://localhost:13306/lockbench?serverTimezone=UTC&characterEncoding=UTF-8
+
+      - name: Run profiling scenario
+        run: |
+          k6 run \
+            -e BASE_URL=http://localhost:8080 \
+            -e LOCK_STRATEGY=PESSIMISTIC_LOCK \
+            -e THREAD_MODEL=PLATFORM \
+            -e TOTAL_REQUESTS=2000 \
+            -e INITIAL_STOCK=20000 \
+            -e CONCURRENCY=200 \
+            src/main/resources/k6/scenarios/${{ steps.jfr.outputs.scenario }} 2>&1 | \
+            tee jfr/k6-output.log | \
+            grep -E "(LOCKBENCH_|✓|✗)" || true
+
+      - name: Wait for JFR to finish and stop app
+        run: |
+          echo "Waiting for JFR recording to complete..."
+          sleep 10
+          kill $APP_PID 2>/dev/null || true
+          sleep 5
+
+      - name: Generate JFR summary
+        run: |
+          JFR_FILE="${{ steps.jfr.outputs.filename }}"
+          if [ -f "$JFR_FILE" ]; then
+            echo "=== JFR Recording Info ===" > jfr/summary.txt
+            echo "File: $JFR_FILE" >> jfr/summary.txt
+            echo "Size: $(du -h $JFR_FILE | cut -f1)" >> jfr/summary.txt
+            echo "Commit: ${{ github.sha }}" >> jfr/summary.txt
+            echo "Date: $(date -Iseconds)" >> jfr/summary.txt
+            echo "" >> jfr/summary.txt
+
+            # Extract key JFR events using jfr tool
+            echo "=== Hot Methods (top 20) ===" >> jfr/summary.txt
+            jfr print --events jdk.ExecutionSample --stack-depth 5 "$JFR_FILE" 2>/dev/null | \
+              head -200 >> jfr/summary.txt || echo "(jfr print not available)" >> jfr/summary.txt
+
+            echo "" >> jfr/summary.txt
+            echo "=== Monitor Wait Events ===" >> jfr/summary.txt
+            jfr print --events jdk.JavaMonitorWait "$JFR_FILE" 2>/dev/null | \
+              head -100 >> jfr/summary.txt || echo "(none)" >> jfr/summary.txt
+
+            echo "" >> jfr/summary.txt
+            echo "=== GC Summary ===" >> jfr/summary.txt
+            jfr print --events jdk.GCHeapSummary "$JFR_FILE" 2>/dev/null | \
+              head -50 >> jfr/summary.txt || echo "(none)" >> jfr/summary.txt
+
+            cat jfr/summary.txt
+          else
+            echo "JFR file not found: $JFR_FILE"
+          fi
+
+      - name: Upload JFR artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jfr-profile-${{ steps.jfr.outputs.timestamp }}
+          path: jfr/
+          retention-days: 90
