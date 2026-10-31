@@ -19,10 +19,11 @@ class RedisDistributedLockStrategyTest {
         RedisDistributedLockStrategy strategy = new RedisDistributedLockStrategy(
                 new AlwaysLockClient(),
                 new SimpleStockPort(),
-                false
+                false,
+                2000L, 3, 5L, 50L
         );
 
-        assertThrows(IllegalStateException.class, () -> strategy.placeOrder(1L, 1, 0));
+        assertThrows(IllegalStateException.class, () -> strategy.placeOrder(1L, 1, 0, 0L));
     }
 
     @Test
@@ -30,10 +31,11 @@ class RedisDistributedLockStrategyTest {
         RedisDistributedLockStrategy strategy = new RedisDistributedLockStrategy(
                 new NeverLockClient(),
                 new SimpleStockPort(),
-                true
+                true,
+                2000L, 3, 5L, 50L
         );
 
-        OrderResult result = strategy.placeOrder(1L, 1, 0);
+        OrderResult result = strategy.placeOrder(1L, 1, 0, 0L);
 
         assertEquals(OrderFailureReason.LOCK_TIMEOUT, result.failureReason());
     }

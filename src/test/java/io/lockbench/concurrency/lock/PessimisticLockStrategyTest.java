@@ -28,7 +28,7 @@ class PessimisticLockStrategyTest {
         try {
             List<CompletableFuture<OrderResult>> futures = new ArrayList<>();
             for (int i = 0; i < 300; i++) {
-                futures.add(CompletableFuture.supplyAsync(() -> strategy.placeOrder(1L, 1, 0), pool));
+                futures.add(CompletableFuture.supplyAsync(() -> strategy.placeOrder(1L, 1, 0, 0L), pool));
             }
 
             int success = 0;
@@ -57,7 +57,7 @@ class PessimisticLockStrategyTest {
         InMemoryStockAccessAdapter adapter = new InMemoryStockAccessAdapter();
         PessimisticLockStrategy strategy = new PessimisticLockStrategy(adapter);
 
-        OrderResult result = strategy.placeOrder(999L, 1, 0);
+        OrderResult result = strategy.placeOrder(999L, 1, 0, 0L);
 
         assertFalse(result.success());
         assertEquals(OrderFailureReason.PRODUCT_NOT_FOUND, result.failureReason());

@@ -17,7 +17,7 @@ class OptimisticLockStrategyTest {
     void returnsInvalidQuantityWhenQuantityIsNonPositive() {
         OptimisticLockStrategy strategy = new OptimisticLockStrategy(new AlwaysConflictPort());
 
-        OrderResult result = strategy.placeOrder(1L, 0, 3);
+        OrderResult result = strategy.placeOrder(1L, 0, 3, 0L);
 
         assertFalse(result.success());
         assertEquals(OrderFailureReason.INVALID_QUANTITY, result.failureReason());
@@ -27,7 +27,7 @@ class OptimisticLockStrategyTest {
     void returnsProductNotFoundWhenSnapshotIsMissing() {
         OptimisticLockStrategy strategy = new OptimisticLockStrategy(new MissingProductPort());
 
-        OrderResult result = strategy.placeOrder(1L, 1, 3);
+        OrderResult result = strategy.placeOrder(1L, 1, 3, 0L);
 
         assertFalse(result.success());
         assertEquals(OrderFailureReason.PRODUCT_NOT_FOUND, result.failureReason());
@@ -37,22 +37,22 @@ class OptimisticLockStrategyTest {
     void returnsOutOfStockWhenQuantityIsInsufficient() {
         OptimisticLockStrategy strategy = new OptimisticLockStrategy(new OutOfStockPort());
 
-        OrderResult result = strategy.placeOrder(1L, 2, 3);
+        OrderResult result = strategy.placeOrder(1L, 2, 3, 0L);
 
         assertFalse(result.success());
         assertEquals(OrderFailureReason.OUT_OF_STOCK, result.failureReason());
     }
 
     @Test
-    void capsRetriesAtFiveAndReturnsVersionConflict() {
+    void capsRetriesAtFiftyAndReturnsVersionConflict() {
         AlwaysConflictPort port = new AlwaysConflictPort();
         OptimisticLockStrategy strategy = new OptimisticLockStrategy(port);
 
-        OrderResult result = strategy.placeOrder(1L, 1, 100);
+        OrderResult result = strategy.placeOrder(1L, 1, 100, 0L);
 
         assertFalse(result.success());
         assertEquals(OrderFailureReason.VERSION_CONFLICT, result.failureReason());
-        assertEquals(6, port.decreaseCalls.get());
+        assertEquals(51, port.decreaseCalls.get());
     }
 
     private static final class MissingProductPort implements StockAccessPort {
